@@ -57,6 +57,8 @@ type issueLabel struct {
 	Description string
 }
 
+var noLabels = []issueLabel{{ID: 0, Name: "non-existant"}}
+
 func (c gitlabClient) getIssueLabels(project *gitlab.Project) ([]issueLabel, error) {
 	l := []issueLabel{}
 	labels, _, err := c.gitlab.Labels.ListLabels(project.ID, &gitlab.ListLabelsOptions{})
@@ -73,6 +75,8 @@ type issueMilestone struct {
 	ID   int
 	Name string
 }
+
+var noMilestone = issueMilestone{ID: 0, Name: "non-existant"}
 
 func (c gitlabClient) getIssueMilestones(project *gitlab.Project) ([]issueMilestone, error) {
 	m := []issueMilestone{}
@@ -127,10 +131,10 @@ func (c gitlabClient) getIssueTemplates(project *gitlab.Project) ([]issueTemplat
 		},
 	}
 	localIssueTemplates, err := getLocalIssueTemplates()
-	issueTemplates = append(issueTemplates, localIssueTemplates...)
 	if err != nil {
 		return issueTemplates, fmt.Errorf("could not get local issue templates: %w", err)
 	}
+	issueTemplates = append(issueTemplates, localIssueTemplates...)
 	nodes, _, err := c.gitlab.Repositories.ListTree(
 		project.ID,
 		&gitlab.ListTreeOptions{
@@ -244,6 +248,21 @@ func (c gitlabClient) createIssueFromTemplate(repository *git.Repository, projec
 	return issue, err
 }
 
+func (c gitlabClient) setIssueLabelsMilestones(project *gitlab.Project, issue *gitlab.Issue, labels []issueLabel, milestone issueMilestone) error {
+	var labelNames []string
+	for _, l := range labels {
+		if l.ID != 0 {
+			labelNames = append(labelNames, l.Name)
+		}
+	}
+	options := &gitlab.UpdateIssueOptions{AddLabels: labelNames}
+	if milestone.ID != 0 {
+		options.MilestoneID = gitlab.Int(milestone.ID)
+	}
+	_, _, err := c.gitlab.Issues.UpdateIssue(project.ID, issue.IID, options)
+	return err
+}
+
 func main() {
 	currentFullPath, err := filepath.Abs(".")
 	if err != nil {
@@ -296,30 +315,56 @@ func main() {
 		log.Fatalf("Failed to select template: %s", err)
 	}
 	log.Printf("Selected template: %s", templates[idx].Name)
-	// labels, err := client.getIssueLabels(project)
-	// if err != nil {
-	// 	log.Printf("Failed to get issue labels for project: %s", err)
-	// }
-	// if len(labels) == 0 {
-	// 	log.Println("No issue labels present")
-	// }
-	// for _, label := range labels {
-	// 	log.Printf("Issue Label: [%s]: %s", label.Name, label.Description)
-	// }
-	// milestones, err := client.getIssueMilestones(project)
-	// if err != nil {
-	// 	log.Printf("Failed to get issue milestones for project: %s", err)
-	// }
-	// if len(milestones) == 0 {
-	// 	log.Println("No issue milestones present")
-	// }
-	// for _, milestone := range milestones {
-	// 	log.Printf("Issue Milestone: [%s]", milestone.Name)
-	// }
+	labels, err := client.getIssueLabels(project)
+	if err != nil {
+		log.Printf("Failed to get issue labels for project: %s", err)
+	}
+	if len(labels) == 0 {
+		log.Println("No issue labels present")
+	}
+
+	milestones, err := client.getIssueMilestones(project)
+	if err != nil {
+		log.Printf("Failed to get issue milestones for project: %s", err)
+	}
+	if len(milestones) == 0 {
+		log.Println("No issue milestones present")
+	}
+
 	issue, err := client.createIssueFromTemplate(repo, project, templates[idx])
 	if err != nil {
 		log.Fatalf("could not create issue: %s", err)
 	}
 	log.Printf("created: %s", issue.WebURL)
-	// TODO: get labels and milestone from issue, prompt to add/set
+	selectedMilestone := noMilestone
+	if len(milestones) > 0 {
+		milestoneIdx, _ := fuzzyfinder.Find(
+			milestones,
+			func(i int) string {
+				return milestones[i].Name
+			},
+		)
+		selectedMilestone = milestones[milestoneIdx]
+	}
+	selectedLabels := noLabels
+	if len(labels) > 0 {
+		labelIdxs, err := fuzzyfinder.FindMulti(
+			labels,
+			func(i int) string {
+				return fmt.Sprintf("%s: %s", labels[i].Name, labels[i].Description)
+			},
+		)
+		selectedLabels = []issueLabel{}
+		if err != nil {
+			selectedLabels = noLabels
+		}
+		for _, idx := range labelIdxs {
+			selectedLabels = append(selectedLabels, labels[idx])
+		}
+	}
+
+	err = client.setIssueLabelsMilestones(project, issue, selectedLabels, selectedMilestone)
+	if err != nil {
+		log.Fatalf("could not add labels/milestones to issue: %s", err)
+	}
 }

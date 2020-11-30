@@ -189,11 +189,10 @@ func getEditor(repository *git.Repository) (string, error) {
 
 func (c gitlabClient) createIssueFromTemplate(repository *git.Repository, project *gitlab.Project, template issueTemplate) (issue *gitlab.Issue, err error) {
 	issue = &gitlab.Issue{}
-	file, err := ioutil.TempFile("", "*pre-submit.md")
+	file, err := ioutil.TempFile("", fmt.Sprintf("*_%s_%s_pre-submit.md", project.Name, template.Name))
 	if err != nil {
 		return issue, fmt.Errorf("could not create temporary issue-description file: %w", err)
 	}
-	defer os.Remove(file.Name())
 	buf := bytes.Buffer{}
 	buf.WriteByte('\n')
 	buf.WriteByte('\n')
@@ -222,7 +221,7 @@ func (c gitlabClient) createIssueFromTemplate(repository *git.Repository, projec
 	}
 	issueContent, err := ioutil.ReadFile(file.Name())
 	if err != nil {
-		return issue, fmt.Errorf("could not read file: %w", err)
+		return issue, fmt.Errorf("could not read file: %w (%s)", err, file.Name())
 	}
 	if bytes.Equal(issueContent, buf.Bytes()) {
 		return issue, fmt.Errorf("content of issue has not been changed")
@@ -232,16 +231,17 @@ func (c gitlabClient) createIssueFromTemplate(repository *git.Repository, projec
 		return issue, fmt.Errorf("empty issue content")
 	}
 	if len(issueSplit[0]) == 0 {
-		return issue, fmt.Errorf("empty issue title")
+		return issue, fmt.Errorf("empty issue title (%s)", file.Name())
 	}
 	if len(issueSplit) == 1 {
 		issueSplit = append(issueSplit, "")
 	}
 	issue, _, err = c.gitlab.Issues.CreateIssue(project.ID, &gitlab.CreateIssueOptions{Title: gitlab.String(issueSplit[0]), Description: gitlab.String(issueSplit[1])})
 	if err != nil {
-		return issue, fmt.Errorf("could not create gitlab issue: %w", err)
+		return issue, fmt.Errorf("could not create gitlab issue: %w (%s)", err, file.Name())
 	}
-	return issue, nil
+	err = os.Remove(file.Name()) // remove file once sure of success
+	return issue, err
 }
 
 func main() {

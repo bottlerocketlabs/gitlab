@@ -1,0 +1,52 @@
+# Make sure to check the documentation at http://goreleaser.com
+before:
+  hooks:
+  - go mod tidy
+builds:
+- id: gitlab
+  binary: gitlab
+  env:
+  - CGO_ENABLED=0
+  main: ./main.go
+  goos:
+  - darwin
+  - linux
+  goarch:
+  - amd64
+archives:
+- replacements:
+    darwin: Darwin
+    linux: Linux
+    amd64: x86_64
+  files:
+  - README.md
+  - LICENSE
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+    - Merge pull request
+    - Merge branch
+    - go mod tidy
+brews:
+- name: gitlab
+  tap:
+    owner: stuart-warren
+    name: homebrew-apps
+    token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
+  folder: Formula
+  homepage:  https://github.com/stuart-warren/gitlab
+  description: Create gitlab issue in project linked to current git repository using git editor and selecting optional template
+  license: BSD-3-clause
+  test: |
+    system "#{bin}/gitlab -help"
+  dependencies:
+  - name: go
+  install: |-
+    bin.install "gitlab"

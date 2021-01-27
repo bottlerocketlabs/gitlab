@@ -1,4 +1,4 @@
-module github.com/stuart-warren/gitlab
+module github.com/bottlerocketlabs/gitlab
 
 go 1.15
 

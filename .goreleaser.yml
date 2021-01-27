@@ -37,11 +37,11 @@ changelog:
 brews:
 - name: gitlab
   tap:
-    owner: stuart-warren
+    owner: bottlerocketlabs
     name: homebrew-apps
     token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
   folder: Formula
-  homepage:  https://github.com/stuart-warren/gitlab
+  homepage:  https://github.com/bottlerocketlabs/gitlab
   description: Create gitlab issue in project linked to current git repository using git editor and selecting optional template
   license: BSD-3-clause
   test: |

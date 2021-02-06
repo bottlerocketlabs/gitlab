@@ -1,12 +1,36 @@
-name: Release
-
+name: go-semantic-release
 on:
-  create:
-    tags:
-      - v*
-
+  push:
+    branches:
+      - master
+      - main
 jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go 1.15
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.15
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test ./...
+
+    - uses: actions/checkout@master
+    - uses: go-semantic-release/action@v1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        allow-initial-development-versions: true
+  
   release:
+    needs: bump
     name: Release on GitHub
     runs-on: ubuntu-latest
     steps:
@@ -25,3 +49,5 @@ jobs:
       env:
         HOMEBREW_GITHUB_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        ARTIFACTORY_USERNAME: ${{secrets.ARTIFACTORY_USERNAME}}
+        ARTIFACTORY_SECRET: ${{secrets.ARTIFACTORY_SECRET}}

@@ -34,6 +34,30 @@ changelog:
     - Merge pull request
     - Merge branch
     - go mod tidy
+nfpms:
+- id: deb
+  package_name: gitlab
+  formats:
+  - deb
+- id: apk
+  package_name: gitlab
+  formats:
+  - apk
+publishers:
+- name: deb
+  ids:
+  - deb
+  cmd: hack/publish_deb {{ abs .ArtifactPath }} {{ .ArtifactName }} {{ .Arch }}
+  env:
+  - ARTIFACTORY_USERNAME={{ .Env.ARTIFACTORY_USERNAME }}
+  - ARTIFACTORY_SECRET={{ .Env.ARTIFACTORY_SECRET }}
+- name: apk
+  ids:
+  - apk
+  cmd: hack/publish_apk {{ abs .ArtifactPath }} {{ .ArtifactName }} {{ .Arch }}
+  env:
+  - ARTIFACTORY_USERNAME={{ .Env.ARTIFACTORY_USERNAME }}
+  - ARTIFACTORY_SECRET={{ .Env.ARTIFACTORY_SECRET }}
 brews:
 - name: gitlab
   tap:

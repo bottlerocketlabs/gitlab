@@ -21,7 +21,7 @@ brews:
     bin.install "gitlab"
 builds:
 - id: *name
-  main: "./cmd/gitlab"
+  main: "./main.go"
   binary: *name
   env:
   - CGO_ENABLED=0

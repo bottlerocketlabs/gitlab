@@ -2,12 +2,29 @@
 before:
   hooks:
   - go mod tidy
+project_name: &name gitlab
+brews:
+- name: *name
+  tap:
+    owner: bottlerocketlabs
+    name: homebrew-apps
+    token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
+  folder: Formula
+  homepage: &homepage https://github.com/bottlerocketlabs/gitlab
+  description: &description Create gitlab issue in project linked to current git repository using git editor and selecting optional template
+  license: &license BSD-3-clause
+  test: |
+    system "#{bin}/gitlab -h"
+  dependencies:
+  - name: go
+  install: |-
+    bin.install "gitlab"
 builds:
-- id: gitlab
-  binary: gitlab
+- id: *name
+  main: "./cmd/gitlab"
+  binary: *name
   env:
   - CGO_ENABLED=0
-  main: ./main.go
   goos:
   - darwin
   - linux
@@ -35,41 +52,34 @@ changelog:
     - go mod tidy
 nfpms:
 - id: deb
-  package_name: gitlab
   formats:
   - deb
+  description: *description
+  maintainer: "Stuart Warren"
+  license: *license
+  homepage: *homepage
 - id: apk
-  package_name: gitlab
+  file_name_template: "{{ .ProjectName }}-{{ .Version }}"
+  replacements:
+      amd64: x86_64
   formats:
   - apk
+  description: *description
+  maintainer: "Stuart Warren"
+  license: *license
+  homepage: *homepage
 publishers:
 - name: deb
   ids:
   - deb
-  cmd: hack/publish_deb {{ abs .ArtifactPath }} {{ .ArtifactName }} {{ .Arch }}
+  cmd: hack/publish_deb {{ abs .ArtifactPath }} {{ .ArtifactName }} {{ replace .Arch "x86_64" "amd64" }}
   env:
   - ARTIFACTORY_USERNAME={{ .Env.ARTIFACTORY_USERNAME }}
   - ARTIFACTORY_SECRET={{ .Env.ARTIFACTORY_SECRET }}
 - name: apk
   ids:
   - apk
-  cmd: hack/publish_apk {{ abs .ArtifactPath }} {{ .ArtifactName }} {{ .Arch }}
+  cmd: hack/publish_apk {{ abs .ArtifactPath }} {{ .ArtifactName }} {{ replace .Arch "amd64" "x86_64" }}
   env:
   - ARTIFACTORY_USERNAME={{ .Env.ARTIFACTORY_USERNAME }}
   - ARTIFACTORY_SECRET={{ .Env.ARTIFACTORY_SECRET }}
-brews:
-- name: gitlab
-  tap:
-    owner: bottlerocketlabs
-    name: homebrew-apps
-    token: "{{ .Env.HOMEBREW_GITHUB_TOKEN }}"
-  folder: Formula
-  homepage:  https://github.com/bottlerocketlabs/gitlab
-  description: Create gitlab issue in project linked to current git repository using git editor and selecting optional template
-  license: BSD-3-clause
-  test: |
-    system "#{bin}/gitlab -help"
-  dependencies:
-  - name: go
-  install: |-
-    bin.install "gitlab"
